@@ -134,9 +134,9 @@ class PollutionEstimationPipeline:
                 if model_type in models and models[model_type] is not None:
                     model = models[model_type]
                     
-                    # Predictions
-                    y_train_pred = model.predict(X_train)
-                    y_test_pred = model.predict(X_test)
+                    # Predictions using trainer (handles feature selection consistency)
+                    y_train_pred = self.trainer.predict(model_type, pollutant, X_train)
+                    y_test_pred = self.trainer.predict(model_type, pollutant, X_test)
                     
                     # Evaluate
                     self.evaluator.evaluate_model(
@@ -247,8 +247,8 @@ class PollutionEstimationPipeline:
                 if model_type in models and models[model_type] is not None:
                     model = models[model_type]
                     
-                    # Predictions
-                    y_test_pred = model.predict(X_test)
+                    # Predictions using trainer (handles feature selection consistency)
+                    y_test_pred = self.trainer.predict(model_type, pollutant, X_test)
                     
                     # Actual vs Predicted
                     self.visualizer.plot_actual_vs_predicted(
@@ -281,12 +281,21 @@ class PollutionEstimationPipeline:
                             category_df, model_type, pollutant
                         )
                         
-                        # Vehicle contributions
-                        contributions = self.explainer.estimate_vehicle_contributions(
+                        # MARGINAL contributions (model explainability - can be negative)
+                        marginal_contrib = self.explainer.estimate_vehicle_contributions(
                             model, X_test, y_test, X_test.columns.tolist()
                         )
-                        self.visualizer.plot_vehicle_contributions(
-                            contributions, pollutant, model_type
+                        self.visualizer.plot_marginal_contributions_bar(
+                            marginal_contrib, pollutant, model_type
+                        )
+                        
+                        # EMISSION-BASED contributions (physical attribution - always positive)
+                        # Extract traffic data for this pollutant
+                        emission_contrib = self.explainer.estimate_emission_contributions(
+                            self.traffic_data, pollutant
+                        )
+                        self.visualizer.plot_emission_contributions_pie(
+                            emission_contrib, pollutant, model_type
                         )
             
             # Model comparison
